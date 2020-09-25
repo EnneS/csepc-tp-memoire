@@ -28,6 +28,7 @@ int main(int argc, char *argv[]) {
  		"\n");
 	for (int i=0; i<NB_TESTS; i++) {
 		mem_init();
+		printf("Print après le mem_init\n");
 		alloc_max(get_memory_size());
 	}
 
