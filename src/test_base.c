@@ -11,11 +11,12 @@ static void *allocs[MAX_ALLOC];
 
 static int make_test() {
 	int nb_alloc = 0;
-	int i=0;
+	int i=1;
 	// On remplit la mémoire de blocs de taille croissante
 	debug("Issuing a sequence of size increasing mallocs, starting from 0\n");
-       	while ((i<MAX_ALLOC) && ((allocs[i] = mem_alloc(i)) != NULL)) {
+    while ((i < MAX_ALLOC) && ((allocs[i] = mem_alloc(i)) != NULL)) {
 		i++;
+		printf("Alloced %d bytes\n", i);
 	}
 	i--;
 	debug("Alloced up to %d bytes at %p\n", i, allocs[i]);
