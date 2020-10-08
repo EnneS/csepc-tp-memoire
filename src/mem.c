@@ -33,7 +33,7 @@ void mem_init() {
     entete = memory;
 
     fb* init_fb; 
-    init_fb = memory + sizeof(struct entete);
+    init_fb = (fb*)((char*) memory + sizeof(struct entete));
     init_fb->size = get_memory_size() - sizeof(entete);
 
     entete->bb_first = NULL;
@@ -44,14 +44,14 @@ void mem_init() {
 // mem_alloc
 //-------------------------------------------------------------
 void* mem_alloc(size_t size) {
-    /* A COMPLETER */ 
     entete* head = (entete*) get_memory_adr();
     fb* current = (fb*)head->fb_first;
     fb* last = NULL;
 
     //On parcours les free blocks
-    while(current != NULL && current->size <= (size + sizeof(bb))) {
+    while(current != NULL && current->size < (size + sizeof(bb))) {
         last = current;
+        printf("Fb trouvé, current_size : %zu, size necessaire : %zu\n",current->size, (size + sizeof(bb) + 1));
         current = current->next;
     } 
     //Si le fb courant a une taille supérieure à la taille demandé
@@ -75,8 +75,7 @@ void* mem_alloc(size_t size) {
         //Si la taille restante est suffisant pour un free block
             //On alloue la mémoire demandée et on créer un autre free block
             fb* new;
-            new = current + sizeof(bb) + size;
-            printf("current: %p, new : %p, size: %ld\n", current, new,current->size);
+            new = (fb*) ((char*) current + sizeof(bb) + size);
             new->size = current->size - sizeof(bb) - size;
             new->next = current->next;
 
@@ -98,7 +97,7 @@ void* mem_alloc(size_t size) {
             
             memory_asked->size = current->size;
         }
-        return memory_asked + sizeof(bb);
+        return (char*) memory_asked + sizeof(bb);
         
     } else {
     //Si on a pas de block disponible on retourne null
@@ -115,18 +114,11 @@ void mem_free(void* zone) {
     entete* head = (entete*) get_memory_adr();
     bb* bb_current = head->bb_first;
     bb* bb_last = NULL;
-
-    while(bb_current != NULL && bb_current != zone) {
+    while(bb_current != NULL && (void*)((char*) bb_current + sizeof(bb)) != zone) {
         bb_last = bb_current;
         bb_current = bb_current->next;
     }
     if(bb_current) {
-
-        if(bb_last != NULL) {
-            bb_last->next = bb_current->next;
-        } else {
-            head->bb_first = bb_current->next;
-        }
         fb* fb_current = head->fb_first;
         fb* fb_last = NULL;
 
@@ -135,32 +127,116 @@ void mem_free(void* zone) {
             fb_current = fb_current->next;
         }
 
+
+
         //SI LA ZONE A LIBERE EST SUFFISANT POUR UN ENTETE DE FREE BLOCK
-        if(bb_current->size > sizeof(fb)) {
-            //ON TROUVE LE fb D'AVANT
-            //ON INSERT LE fb
-            fb* new_fb = zone;
-            new_fb->size = bb_current->size + sizeof(bb);
-            if(fb_last != NULL) {
-                new_fb->next = fb_last->next;
-                fb_last->next = new_fb;
+        if((bb_current->size + sizeof(bb)) >= sizeof(fb)) {
+            // Si bb_last == NULL et fb_last == NULL
+            // (Le bloc à libérer est collé à l'entête)
+            if(bb_last == NULL && fb_last == NULL) {
+                // Si le bloc d'après est occupé
+                if((bb*)((char*) bb_current + sizeof(bb) + bb_current->size) == bb_current->next){
+                    fb* new_fb = (fb*) bb_current;
+                    new_fb->size = bb_current->size + sizeof(bb);
+                    new_fb->next = head->fb_first;
+                    head->fb_first = new_fb;
+                } else {
+                    // Sinon, il s'agit d'un bloc libre
+                    fb_current = (fb*) bb_current;
+                    fb_current->size += bb_current->size + sizeof(bb);
+                }
             } else {
+                /* 1    Avant : FB
+                *       Après : FB */ 
+               if(fb_last > (fb*) bb_last && fb_current->next == (fb*)((char*) bb_current + sizeof(bb) + bb_current->size)){
+                    fb_last->size += bb_current->size + sizeof(bb) + fb_current->size;
+                    fb_last->next = fb_current->next;
+                    if(bb_last == NULL){
+                        head->bb_first = bb_current->next;
+                    } else {
+                        bb_last->next = bb_current->next;
+                    }
+               } 
+                /* 2    Avant : FB
+                *       Après : BB ou Rien */   
+               else if (bb_current->next == NULL || bb_current->next == (bb*)((char*) bb_current + sizeof(bb) + bb_current->size)) {
+                    fb_last->size += bb_current->size + sizeof(bb);
+                    if(bb_last == NULL){
+                        head->bb_first = bb_current->next;
+                    } else {
+                        bb_last->next = bb_current->next;
+                    }
+               }
+               
+                /* 3    Avant : BB
+                *       Après : FB */
+                if(bb_last > (bb*) fb_last){
+                    if(fb_current->next == (fb*)((char*) bb_current + sizeof(bb) + bb_current->size)){
+                        
+                    } else {
+
+                    }
+                }
+                /* 4    Avant : BB
+                *       Après : BB ou Rien */
+                else if (bb_current->next == NULL || bb_current->next == (bb*)((char*) bb_current + sizeof(bb) + bb_current->size)) {
+
+                }
+            }
+
+
+            //1 SI LE BLOCK D'AVANT EST UN FREE BLOCK ET LE BLOCK D'APRÈS EST UN FREE BLOCK
+            if(fb_last->next == (fb*)((char *) bb_current +  bb_current->size + sizeof(bb)) && fb_last > (fb*) bb_last) {
+                fb_last->size += bb_current->size + sizeof(bb) + fb_current->size;
+                fb_last->next = fb_current->next;
+                //SI LE BUSY D'AVANT EST NULL 
+                if(bb_last == NULL) {
+                    head->bb_first = bb_current->next;
+                } 
+                //SINON
+                else {
+                    bb_last->next = bb_current->next;
+                }
+            }
+            //2 SI LE BLOCK D'AVANT EST UN FREE BLOCK ET LE BLOCK D'APRÈS EST UN BUSY BLOCK OU EST NULL
+            else if(fb_last > (fb*) bb_last && (
+            bb_last->next == (bb*)((char *) bb_current +  bb_current->size + sizeof(bb)) 
+            || bb_current->next == NULL 
+            )) {
+                fb_last->size += bb_current->size + sizeof(bb);
+                bb_last->next = bb_current->next;
+            }
+            //3 SI LE BLOCK D'AVANT EST UN BUSY BLOCK 
+            //ET LE BLOCK D'APRÈS EST UN BUSY BLOCK OU NULL
+            else if(fb_last < (fb*) bb_last && (
+            bb_current->next == (bb*)((char *) bb_current +  bb_current->size + sizeof(bb)) 
+            || bb_current->next == NULL
+            )){
+                fb* new_fb = zone;
+                new_fb->next = fb_last->next;
+                new_fb->size = bb_current->size + sizeof(bb);
+                fb_last->next = new_fb;
+            }
+            //4 SI LE BLOCK D'AVANT EST UN BUSY BLOCK ET LE BLOCK D'APRÈS EST UN FREE BLOCK
+            else if(bb_last > (bb*)fb_last && bb_current->next == (bb*)((char*) bb_current + sizeof(bb) + bb_current->size)) {
+                fb_current = (fb*) bb_current;
+                fb_current->size += bb_current->size + sizeof(bb);
+            }
+            //5 SI LE BLOCK D'AVANT EST L'ENTÊTE ET LE BLOCK D'APRÈS UN FREE BLOCK
+            else if(bb_last == NULL && fb_last == NULL && (fb*)((char*) bb_current + sizeof(bb) + bb_current->size) == fb_current->next) {
+                fb_current = (fb*) bb_current;
+                fb_current->size += bb_current->size + sizeof(bb);
+                head->bb_first = bb_current->next;
+            }
+            //5 SI LE BLOCK D'AVANT EST L'ENTÊTE ET LE BLOCK D'APRÈS UN BUSY BLOCK
+            else if(bb_last == NULL && fb_last == NULL && (bb*)((char*) bb_current + sizeof(bb) + bb_current->size) == bb_current->next) {
+                fb* new_fb = (fb*) bb_current;
                 new_fb->next = head->fb_first;
+                new_fb->size = bb_current->size + sizeof(bb);
+                head->bb_first = bb_current->next;
                 head->fb_first = new_fb;
             }
-        } else {
-        //SINON
-            if(head + sizeof(entete) != zone) {
-                //LE BLOCK D'AVANT EST UN bb
-                    //ON AJOUTE A LA TAILLE DE CE bb LA TAILLE LIBERE ET ON CHANGE NEXT AVEC NEXT DE CURRENT
-                //LE BLOCK D'AVANT EST UN FB
-                    //ON AJOUTE A LA TAILLE DE CE fb LA TAILLE LIBERE ET ON CHANGE NEXT AVEC NEXT DE CURRENT
-                if((void*) bb_last < (void*) fb_last) {
-                    fb_last->size += bb_current->size + sizeof(bb);
-                } else {
-                    bb_last->size += bb_current->size + sizeof(bb);
-                }
-            }  
+            //6 SI LE FREE BLOCK D'AVANT EST NULL ET LE BLOCK D'AVANT ET UN BUSY BLOCK 
         }
     } else  {
         printf("mem_free: Segmentation fault\n");
