@@ -261,11 +261,8 @@ void mem_free(void* zone) {
             }
         }
     } else  {
-        printf("mem_free: Segmentation fault - Zone invalide\n");
+        printf("mem_free: Segmentation fault - Zone donnée invalide\n");
     }
-
-    //Si courant == null 
-        //print segmentation fault
 }
 
 //-------------------------------------------------------------
