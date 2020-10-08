@@ -210,19 +210,16 @@ void mem_free(void* zone) {
                     if(bb_last != NULL && bb_last > (bb*) fb_last) {
                         // G
                         bb_last->next = bb_current->next;
-                        fb* new_fb = (fb*) bb_current;
-                        new_fb->next = NULL;
-                        new_fb->size = bb_current->size + sizeof(bb);
-                        head->fb_first = new_fb;
                     }
                     // Sinon (collé à l'entête)
                     else {
                         // H
                         head->bb_first = bb_current->next;
-                        fb* new_fb = (fb*) bb_current;
-                        new_fb->size = bb_current->size + sizeof(bb);
-                        head->fb_first = new_fb;
                     } 
+                    fb* new_fb = (fb*) bb_current;
+                    new_fb->next = NULL;
+                    new_fb->size = bb_current->size + sizeof(bb);
+                    head->fb_first = new_fb;
                 }  
                 // Sinon
                 else {
@@ -232,20 +229,16 @@ void mem_free(void* zone) {
                         if(bb_last != NULL && bb_last > (bb*) fb_last) {
                             // I
                             bb_last->next = bb_current->next;
-                            fb* new_fb = (fb*) bb_current;
-                            new_fb->next = head->fb_first;
-                            head->fb_first = new_fb;
-                            new_fb->size = bb_current->size + sizeof(bb);
                         }
                         // Sinon collé à l'entête
                         else {
                             // J
                             head->bb_first = bb_current->next;
-                            fb* new_fb = (fb*) bb_current;
-                            new_fb->next = head->fb_first;
-                            head->fb_first = new_fb;
-                            new_fb->size = bb_current->size + sizeof(bb);
                         }
+                        fb* new_fb = (fb*) bb_current;
+                        new_fb->next = head->fb_first;
+                        head->fb_first = new_fb;
+                        new_fb->size = bb_current->size + sizeof(bb);
                     }
                     // Sinon (fb collé après)
                     else {
@@ -253,20 +246,16 @@ void mem_free(void* zone) {
                         if(bb_last != NULL) {
                             // K
                             bb_last->next = bb_current->next;
-                            fb* new_fb = (fb*) bb_current;
-                            new_fb->next = head->fb_first;
-                            head->fb_first = new_fb;
-                            new_fb->size = bb_current->size + sizeof(bb) + fb_current->size;
                         }
                         // Sinon l'entête est collé
                         else {
                             // L
                             head->bb_first = bb_current->next;
-                            fb* new_fb = (fb*) bb_current;
-                            new_fb->next = head->fb_first;
-                            head->fb_first = new_fb;
-                            new_fb->size = bb_current->size + sizeof(bb) + fb_current->size;
                         }
+                        fb* new_fb = (fb*) bb_current;
+                        new_fb->next = head->fb_first;
+                        head->fb_first = new_fb;
+                        new_fb->size = bb_current->size + sizeof(bb) + fb_current->size;
                     }
                 }
             }
