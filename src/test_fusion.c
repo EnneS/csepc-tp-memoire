@@ -72,13 +72,15 @@ int main(int argc, char *argv[]) {
 	for (int i=0; i<NB_TESTS; i++) {
 		debug("Fusion avant\n");
 		alloc5(ptr);
+
 		my_free(&ptr[2]);
-		my_free(&ptr[1]);
+		my_free(&ptr[1]);   
 		ptr[1] = checked_alloc(2*MAX_ALLOC);
 		free5(ptr);
 
 		debug("Fusion arrière\n");
 		alloc5(ptr);
+		printf("Allocation des 5\n");
 		my_free(&ptr[1]);
 		my_free(&ptr[2]);
 		ptr[1] = checked_alloc(2*MAX_ALLOC);

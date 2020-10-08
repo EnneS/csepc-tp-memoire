@@ -45,18 +45,21 @@ void mem_init() {
 //-------------------------------------------------------------
 void* mem_alloc(size_t size) {
     entete* head = (entete*) get_memory_adr();
+
+    // On cherche le premier freeblock ayant une taille suffisante
     fb* current = (fb*)head->fb_first;
     fb* last = NULL;
-
-    //On parcours les free blocks
     while(current != NULL && current->size < (size + sizeof(bb))) {
         last = current;
-        printf("Fb trouvé, current : %p , current_size : %zu, size necessaire : %zu\n",current, current->size, (size + sizeof(bb) + 1));
         current = current->next;
     } 
-    //Si le fb courant a une taille supérieure à la taille demandé
+
+    //Si le fb courant a une taille supérieure à la taille demandée
     if(current) {
+        // On créé un busyblock pour la nouvelle zone mémoire
         bb* memory_asked = (bb*) current;
+        
+        // On récupère les busyblocks voisins à cette nouvelle zone mémoire
         bb* bb_last = NULL;
         bb* bb_current = head->bb_first;
         while(bb_current != NULL && bb_current < memory_asked) {
@@ -64,6 +67,37 @@ void* mem_alloc(size_t size) {
             bb_current = bb_current->next;
         }
 
+        //Si la taille restante est suffisante pour un freeblock (non vide)
+        if(current->size > (sizeof(fb) + size + sizeof(bb))){
+            // On créé un nouveau freeblock
+            fb* new;
+            new = (fb*) ((char*) current + sizeof(bb) + size);
+            new->size = current->size - sizeof(bb) - size;
+
+            // Insertion du freeblock dans la liste chaînée
+            new->next = current->next;
+            if(last) {
+                last->next = new;
+            } else {
+                head->fb_first = new;
+            }
+
+            // On alloue la mémoire
+            memory_asked->size = size;
+        } 
+        //Sinon 
+        else {     
+            // Suppression du freeblock courant de la liste chaînée
+            if(last)
+                last->next = current->next;
+            else 
+                head->fb_first = current->next;
+
+            // On alloue toute la mémoire restante du freeblock courant
+            memory_asked->size = (current->size - sizeof(bb));
+        }
+
+        // On insère le nouveau busyblock dans la liste chaînée
         memory_asked->next = bb_current;
         if(bb_last == NULL) {
             head->bb_first = memory_asked;
@@ -71,36 +105,11 @@ void* mem_alloc(size_t size) {
             bb_last->next = memory_asked;
         }
 
-        if(current->size > (sizeof(fb) + size + sizeof(bb))){
-        //Si la taille restante est suffisant pour un free block
-            //On alloue la mémoire demandée et on créer un autre free block
-            fb* new;
-            new = (fb*) ((char*) current + sizeof(bb) + size);
-            new->size = current->size - sizeof(bb) - size;
-            new->next = current->next;
-
-            if(last) {
-                last->next = new;
-            } else {
-                head->fb_first = new;
-            }
-
-            memory_asked->size = size;
-        } else {         
-        //Sinon 
-            //On alloue toute la mémoire au pour la demande
-            //next du block précédent est next de courant
-            if(last)
-                last->next = current->next;
-            else 
-                head->fb_first = current->next;
-            
-            memory_asked->size = current->size;
-        }
+        // On renvoie le pointeur à cette zone mémoire (en n'oubliant pas d'omettre l'entête)
         return (char*) memory_asked + sizeof(bb);
         
     } else {
-    //Si on a pas de block disponible on retourne null
+        //Si on a pas de block disponible on retourne null
         return NULL;
     }
 }
@@ -109,20 +118,21 @@ void* mem_alloc(size_t size) {
 // mem_free
 //-------------------------------------------------------------
 void mem_free(void* zone) {
-    
     entete* head = (entete*) get_memory_adr();
+
+    // Chercher le busyblock correspondant à la zone donnée
     bb* bb_current = head->bb_first;
     bb* bb_last = NULL;
-    // Chercher le busyblock correspondant à la zone donnée
     while(bb_current != NULL && (void*)((char*) bb_current + sizeof(bb)) != zone) {
         bb_last = bb_current;
         bb_current = bb_current->next;
     }
+
+    // Si on a trouvé le busyblock correspondant
     if(bb_current) {
+        // Récupérere les freeblocks voisins à ce busyblock
         fb* fb_current = head->fb_first;
         fb* fb_last = NULL;
-
-        // Chercher le freeblock après le plus proche
         while(fb_current != NULL && fb_current < (fb*) zone) {
             fb_last = fb_current;
             fb_current = fb_current->next;
@@ -237,8 +247,8 @@ void mem_free(void* zone) {
                         }
                         fb* new_fb = (fb*) bb_current;
                         new_fb->next = head->fb_first;
-                        head->fb_first = new_fb;
                         new_fb->size = bb_current->size + sizeof(bb);
+                        head->fb_first = new_fb;
                     }
                     // Sinon (fb collé après)
                     else {
@@ -253,9 +263,9 @@ void mem_free(void* zone) {
                             head->bb_first = bb_current->next;
                         }
                         fb* new_fb = (fb*) bb_current;
-                        new_fb->next = head->fb_first;
-                        head->fb_first = new_fb;
+                        new_fb->next = NULL;
                         new_fb->size = bb_current->size + sizeof(bb) + fb_current->size;
+                        head->fb_first = new_fb;
                     }
                 }
             }

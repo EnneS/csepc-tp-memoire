@@ -47,7 +47,6 @@ void alloc_fun(int n) {
 	a = checked_alloc(5);
 	store_or_check(a);
 	b = checked_alloc(10);
-	printf("Oui\n");
 	store_or_check(b);
 	alloc_fun(n-1);
 	my_free(&a);
@@ -70,5 +69,6 @@ int main(int argc, char *argv[]) {
 	}
 
 	// TEST OK
+	printf("TEST OK!!\n");
 	return 0;
 }
